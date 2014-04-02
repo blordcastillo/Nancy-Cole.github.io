@@ -1,211 +1,165 @@
-Historical Sites by U.S. Congressional District in Missouri (Nancy Cole)
-<!DOCTYPE html>
-<html>
-  <head>
-    <meta http-equiv="Content-Type" content="text/html; charset=utf-8">
-    <meta name="viewport" content="initial-scale=1, maximum-scale=1,user-scalable=no"/>
-    <title>Simple Map</title>
-    <link rel="stylesheet" href="http://js.arcgis.com/3.8/js/esri/css/esri.css">
-    <style>
-      html, body, #map {
-        height: 100%;
-        width: 100%;
-        margin: 0;
-        padding: 0;
-      }
-      body {
-        background-color: #FFF;
-        overflow: hidden;
-        font-family: "Trebuchet MS";
-      }
-      #home{
-        position:absolute;
-        top:100px;
-        left:20px;
-        z-index:1;
-      }
-	  #geocoder{
-	    position:absolute;
-		top:40px;
-		left:75px;
-		z-index:1;
-	  }
-      #info {
-        position: absolute;
-        right: 0;
-        top: 0;
-        padding: 10px;
-        background-color: #999;
-        font: Verdana;
-        width: 150px;
-        z-index:2;
-        text-align: left;
-        border-radius: 0 0 0 10px;
-      }
-      <!--The z-index property specifies the stack order of elements.-->
-    </style>
-    <script src="http://js.arcgis.com/3.8/"></script>
-    <script>
-    var map;
-
-    //  This mashup map combines Historic Sites and U.S. Congressional Districts located
-    //	in the state of Missouri.  The data comes from "MSDIS", the Missouri Spatial Data
+    //  This mashup map combines National Historic Sites and U.S. Congressional Districts
+    //	located in Missouri.  The data comes from "MSDIS", the Missouri Spatial Data
     //	Information Service.  The map includes a home button widget, a geocoder widget, a
-	//  popup box for the historic sites layer, and labels for the congressional district
+    //  popup box for the historic sites layer, and labels for the congressional district
     //	layer.  The map uses both a Simple Renderer and a Unique Value Renderer.
-	//
-	//  Add a reference to all required modules, in both Require and Function.
-    require(["esri/map","esri/dijit/HomeButton","esri/dijit/Geocoder",
-             "esri/dijit/PopupTemplate","esri/layers/FeatureLayer",
-			 "esri/symbols/SimpleMarkerSymbol","esri/symbols/SimpleLineSymbol",
-			 "esri/symbols/SimpleFillSymbol","esri/renderers/SimpleRenderer",
-			 "esri/renderers/UniqueValueRenderer","dojo/_base/Color",
-			 "esri/dijit/Legend","esri/symbols/TextSymbol",
-			 "esri//layers/LabelLayer","dojo/domReady!"], 
-    function(Map,HomeButton,Geocoder,PopupTemplate,FeatureLayer,
-             SimpleMarkerSymbol,SimpleLineSymbol,SimpleFillSymbol,
-			 SimpleRenderer,UniqueValueRenderer,Color,
-			 Legend,TextSymbol,LabelLayer) {
-    			 
-	//  Add a new topo map centered on the geographic center of Missouri.		 
-    map = new Map("map", {
-        basemap: "topo",
-        center: [-92.632,38.495], //  Long and lat set initially to the geographic center of Missouri.
-        zoom: 7  //  Zoom level set to initially display the entire state of Missouri.
-        });
-		
-    //  Create an instance of the HomeButton widget, referencing the map and where to attach the widget.
-    var home = new HomeButton({map:map},"home");
-        home.startup();
-		
-    //  Create an instance of the Geocoder widget, including the autoComplete parameter.
-    var geocoder = new Geocoder({map:map,autoComplete:true,value:"Find a place"},"geocoder");
-        geocoder.startup();
+    //
+    //  Add a reference to all required modules, in both Require and Function.
+    require(["esri/map", "esri/dijit/HomeButton", "esri/dijit/Geocoder",
+            "esri/dijit/PopupTemplate", "esri/layers/FeatureLayer",
+            "esri/symbols/SimpleMarkerSymbol", "esri/symbols/SimpleLineSymbol",
+            "esri/symbols/SimpleFillSymbol", "esri/renderers/SimpleRenderer",
+            "esri/renderers/UniqueValueRenderer", "dojo/_base/Color",
+            "esri/dijit/Legend", "esri/symbols/TextSymbol",
+            "esri/layers/LabelLayer", "esri/graphic", "dojo/domReady!"
+        ],
+        function (Map, HomeButton, Geocoder, PopupTemplate, FeatureLayer,
+            SimpleMarkerSymbol, SimpleLineSymbol, SimpleFillSymbol,
+            SimpleRenderer, UniqueValueRenderer, Color,
+            Legend, TextSymbol, LabelLayer, Graphic) {
 
-	//  Add a symbol and display an info window for the location found with the Geocoder.
-    //geocoder.on("select", showLocation);
-	//function showLocation(evt) {
-    //    map.graphics.clear();
-    //var point = evt.result.feature.geometry;
-    //var symbol = new SimpleMarkerSymbol()
-    //    .setStyle("square")
-    //    .setColor(new Color([228,26,28,0.5]));    //  Bright red fill.
-    //var graphic = new Graphic(point, symbol);
-    //map.graphics.add(graphic);
+            //  Add a new topo map centered on the geographic center of Missouri.		 
+            map = new Map("map", {
+                basemap: "topo",
+                center: [-92.632, 38.495], //  Long and lat set initially to the geographic center of Missouri.
+                zoom: 7 //  Zoom level set to initially display the entire state of Missouri.
+            });
 
-    //map.infoWindow.setTitle("Search Result");
-    //map.infoWindow.setContent(evt.result.name);
-    //map.infoWindow.show(evt.result.feature.geometry);
-    //};
-	
-    //  Create a popup infobox for the historic sites layer.
-    var template_hsites = new PopupTemplate({
-        title:"{HISTORIC SITE}",
-        fieldInfos:[{fieldName:"HST_NAME",visible:true,label:"Historic Name: "},
-                    {fieldName:"OTHR_NAME",visible:true,label:"Other Name: "},
-                    {fieldName:"PADDRESS",visible:true,label:"Address: "},
-                    {fieldName:"PLOCALNAME",visible:true,label:"Location: "},
-                    {fieldName:"DATE_LIST",visible:true,label:"Date Listed: "}]
-        });
-        
-	//  Define a new feature layer of historic sites from the MSDIS ArcGIS server.
-    var hsites = new FeatureLayer(
-	    "http://msdisweb.missouri.edu/ArcGIS/rest/services/MSDIS_Download/MapServer/32",{
-        mode:FeatureLayer.MODE_ONDEMAND,  //  Query mode for the feature layer.
-        outFields:["*"],
-        infoTemplate:template_hsites
-        });
-		
-	//  Create the historic sites simple marker symbol.
-	var markerSym = new SimpleMarkerSymbol(SimpleMarkerSymbol.STYLE_DIAMOND, 10,
-    new SimpleLineSymbol(SimpleLineSymbol.STYLE_SOLID,
-        new Color([0,0,0]),1),    //  Black outline.
-        new Color([0, 255, 0]));    //  Bright green fill.
-	
-	//  Set the sites renderer.
-	var sitesrenderer = new SimpleRenderer(markerSym);
-	hsites.setRenderer(sitesrenderer);
-		
-    //  Define a new feature layer of congressional districts from the MSDIS ArcGIS server.
-	var cdistricts = new FeatureLayer(
-		"http://msdisweb.missouri.edu/ArcGIS/rest/services/MSDIS_Download/MapServer/7",{
-        mode:FeatureLayer.MODE_ONDEMAND,  //  Query mode for the feature layer.
-        outFields:["DISTRICT"]
-		});
-		
-	//  Create the congressional districts line renderer.
-	//  var linerenderer = new SimpleRenderer(new SimpleLineSymbol().setWidth(1));
-	//  linerenderer.setColorInfo({
-	//  colors: [
-	//  new Color([228, 26, 28, 0.5])  //  Bright red lines, with 50% opacity.
-	//	]
-		
-	//  Create the districts fill renderer.
-	var defaultSymbol = new SimpleFillSymbol().setColor(new Color([255, 255, 255]));
-	var distrenderer = new UniqueValueRenderer(defaultSymbol, "DISTRICT");
-		
-	//  Add a color for each of the 8 districts, using pastels chosen from ColorBrewer.
-	distrenderer.addValue("1", new SimpleFillSymbol().setColor(new Color([251, 180, 174, 0.7])));
-	//  new SimpleLineSymbol().setWidth(1);
-	//	new SimpleLineSymbol().setColor(new Color([228, 26, 28, 0.5]));    //  Bright red lines, 50% opacity.
-	distrenderer.addValue("2", new SimpleFillSymbol().setColor(new Color([179, 205, 227, 0.7])));
-	distrenderer.addValue("3", new SimpleFillSymbol().setColor(new Color([204, 235, 197, 0.7])));
-	distrenderer.addValue("4", new SimpleFillSymbol().setColor(new Color([222, 203, 228, 0.7])));
-	distrenderer.addValue("5", new SimpleFillSymbol().setColor(new Color([254, 217, 166, 0.7])));
-	distrenderer.addValue("6", new SimpleFillSymbol().setColor(new Color([255, 255, 204, 0.7])));
-	distrenderer.addValue("7", new SimpleFillSymbol().setColor(new Color([229, 216, 189, 0.7])));
-	distrenderer.addValue("8", new SimpleFillSymbol().setColor(new Color([253, 218, 236, 0.7])));
-		
-	//  Set the districts line and fill renderers.
-	//  cdistricts.setRenderer(linerenderer);
-	cdistricts.setRenderer(distrenderer);
-		
-	//  Add the districts and sites layers to the map.
-    map.addLayer(cdistricts);
-	map.addLayer(hsites);
-      
-    //  Add the legend to the map and the layers to the legend, using the map.on dojo event handler.
-    hsites.on("load",function (evt) {
-	var legend = new Legend({
-	    map: map,
-		layerInfos: [{
-			    layer: hsites,
-			    title: "Historical Sites"
-		}, {
-			    layer: cdistricts,
-			    title: "Congressional Districts"
-		}]
-		}, "legend");
-		legend.startup();
-        addLabels();
-    });	
-	
-	//  Create a text symbol to define a label style for the congressional districts.
-	function addLabels() {
-	    var labelField = "DISTRICT";
-		var distColor = new Color([228, 26, 28]);  //  Bright red letters.
-		var distLabel = new TextSymbol().setColor(distColor);
-            distLabel.font.setSize("14pt");
-            distLabel.font.setFamily("arial");
-            distLabelRenderer = new SimpleRenderer(distLabel);
-        var labels = new LabelLayer({ id: "labels" });
-        labels.addFeatureLayer(cdistricts, distLabelRenderer, "${" + labelField + "}");
-		
-        //  Add the label layer to the map.
-        map.addLayer(labels);
-	}
-	});
-    </script>
-  </head>
+            //  Create an instance of the HomeButton widget, referencing the map and where to attach the widget.
+            var home = new HomeButton({
+                map: map
+            }, "home");
+            home.startup();
 
-  <body>
-    <!--Add a new element to store the user interface for each widget.--!>
-    <div id="map">
-      <div id="home"></div>
-	  <div id="geocoder"></div>
-      <div id="info" style="font-size: 20px;">Legend
-      <div id="legend"></div>
-    </div>
-    </div>
-  </body>
-</html>
+            //  Create an instance of the Geocoder widget, including the autoComplete parameter.
+            var geocoder = new Geocoder({
+                map: map,
+                autoComplete: true,
+                value: "Find an address"
+            }, "geocoder");
+            geocoder.startup();
+
+            //  Add a symbol and display an info window for the location found with the Geocoder.
+            geocoder.on("select", showLocation);
+
+            function showLocation(evt) {
+                map.graphics.clear();
+                var point = evt.result.feature.geometry;
+                var symbol = new SimpleMarkerSymbol().setStyle(
+                    SimpleMarkerSymbol.STYLE_SQUARE).setColor(
+                    new Color([255, 0, 0, 0.5]) //  Bright red fill.
+                );
+                var graphic = new Graphic(point, symbol);
+                map.graphics.add(graphic);
+
+                map.infoWindow.setTitle("Search Result");
+                map.infoWindow.setContent(evt.result.name);
+                map.infoWindow.show(evt.result.feature.geometry);
+            }
+
+            //  Create a popup infobox for the historic sites layer.
+            var template_hsites = new PopupTemplate({
+                title: "{HISTORIC SITE}",
+                fieldInfos: [{
+                    fieldName: "HST_NAME",
+                    visible: true,
+                    label: "Historic Name: "
+                }, {
+                    fieldName: "OTHR_NAME",
+                    visible: true,
+                    label: "Other Name: "
+                }, {
+                    fieldName: "PADDRESS",
+                    visible: true,
+                    label: "Address: "
+                }, {
+                    fieldName: "PLOCALNAME",
+                    visible: true,
+                    label: "Location: "
+                }, {
+                    fieldName: "DATE_LIST",
+                    visible: true,
+                    label: "Date Listed: "
+                }]
+            });
+
+            //  Define a new feature layer of historic sites from the MSDIS ArcGIS server.
+            var hsites = new FeatureLayer(
+                "http://msdisweb.missouri.edu/ArcGIS/rest/services/MSDIS_Download/MapServer/32", {
+                    mode: FeatureLayer.MODE_ONDEMAND, //  Query mode for the feature layer.
+                    outFields: ["*"],
+                    infoTemplate: template_hsites
+                });
+
+            //  Create the historic sites simple marker symbol.
+            var markerSym = new SimpleMarkerSymbol(SimpleMarkerSymbol.STYLE_DIAMOND, 10,
+                new SimpleLineSymbol(SimpleLineSymbol.STYLE_SOLID,
+                    new Color([0, 0, 0]), 1), //  Black outline.
+                new Color([0, 255, 0])); //  Bright green fill.
+
+            //  Set the sites renderer.
+            var sitesrenderer = new SimpleRenderer(markerSym);
+            hsites.setRenderer(sitesrenderer);
+
+            //  Define a new feature layer of congressional districts from the MSDIS ArcGIS server.
+            var cdistricts = new FeatureLayer(
+                "http://msdisweb.missouri.edu/ArcGIS/rest/services/MSDIS_Download/MapServer/7", {
+                    mode: FeatureLayer.MODE_ONDEMAND, //  Query mode for the feature layer.
+                    outFields: ["DISTRICT"]
+                });
+
+            //  Create the congressional districts fill renderer, including fill color and outline width and color.
+            var defaultSymbol = new SimpleFillSymbol().setColor(new Color([255, 255, 255]));
+            var defaultOutline = new SimpleLineSymbol().setWidth(1).setColor(new Color([228, 26, 28, 0.7]));
+            var distrenderer = new UniqueValueRenderer(null, "DISTRICT"); //  Set the first argument,defaultSymbol, to null.
+
+            //  Add a color for each of the 8 districts, using pastels chosen from ColorBrewer.
+            distrenderer.addValue("1", new SimpleFillSymbol(SimpleFillSymbol.STYLE_SOLID, defaultOutline, new Color([251, 180, 174, 0.7])));
+            distrenderer.addValue("2", new SimpleFillSymbol(SimpleFillSymbol.STYLE_SOLID, defaultOutline, new Color([179, 205, 227, 0.7])));
+            distrenderer.addValue("3", new SimpleFillSymbol(SimpleFillSymbol.STYLE_SOLID, defaultOutline, new Color([204, 235, 197, 0.7])));
+            distrenderer.addValue("4", new SimpleFillSymbol(SimpleFillSymbol.STYLE_SOLID, defaultOutline, new Color([222, 203, 228, 0.7])));
+            distrenderer.addValue("5", new SimpleFillSymbol(SimpleFillSymbol.STYLE_SOLID, defaultOutline, new Color([254, 217, 166, 0.7])));
+            distrenderer.addValue("6", new SimpleFillSymbol(SimpleFillSymbol.STYLE_SOLID, defaultOutline, new Color([255, 255, 204, 0.7])));
+            distrenderer.addValue("7", new SimpleFillSymbol(SimpleFillSymbol.STYLE_SOLID, defaultOutline, new Color([229, 216, 189, 0.7])));
+            distrenderer.addValue("8", new SimpleFillSymbol(SimpleFillSymbol.STYLE_SOLID, defaultOutline, new Color([253, 218, 236, 0.7])));
+
+            //  Set the districts line fill renderer.
+            cdistricts.setRenderer(distrenderer);
+
+            //  Add the districts and sites layers to the map.
+            map.addLayer(cdistricts);
+            map.addLayer(hsites);
+
+            //  Add the legend to the map and the layers to the legend, using the map.on dojo event handler.
+            hsites.on("load", function (evt) {
+                var legend = new Legend({
+                    map: map,
+                    layerInfos: [{
+                        layer: hsites,
+                        title: "Historical Sites"
+                    }, {
+                        layer: cdistricts,
+                        title: "Congressional Districts"
+                    }]
+                }, "legend");
+                legend.startup();
+                addLabels();
+            });
+
+            //  Create a text symbol to define a label style for the congressional districts.
+            function addLabels() {
+                var labelField = "DISTRICT";
+                var distColor = new Color([228, 26, 28]); //  Bright red letters.
+                var distLabel = new TextSymbol().setColor(distColor);
+                distLabel.font.setSize("14pt");
+                distLabel.font.setFamily("arial");
+                distLabelRenderer = new SimpleRenderer(distLabel);
+                var labels = new LabelLayer({
+                    id: "labels"
+                });
+                labels.addFeatureLayer(cdistricts, distLabelRenderer, "${" + labelField + "}");
+
+                //  Add the label layer to the map.
+                map.addLayer(labels);
+            }
+        });
