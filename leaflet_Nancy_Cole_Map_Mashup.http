@@ -1,0 +1,62 @@
+Real estate sales, 2011-2013, St. Louis County, MO (Nancy Cole)
+<html>
+    <head>
+        <link rel="stylesheet" href="http://cdn.leafletjs.com/leaflet-0.7.2/leaflet.css" />
+		<style>
+            #map { height: 740px; }
+	    </style>
+    </head>		 
+    <body>
+        <div id="map"></div>
+        <script src="http://cdn.leafletjs.com/leaflet-0.7.2/leaflet.js"></script>
+		<script src="County_Bdy.js" type="text/javascript"></script>
+		<script src="sales.js" type="text/javascript"></script>
+        <script>
+        //  This Leaflet mashup map combines real-estate sales points, 2011-2013, and
+        //  the county boundary for St. Louis County, MO.  The data comes from the St.
+        //  Louis County geoJson collection on GitHub.  NOTE:  The sales layer takes
+        //  about 30 seconds to load, because there are 46,147 total points.
+        var map = L.map('map').setView([38.6, -90.3], 10);
+
+        //  Add the CloudMade basemap.
+        L.tileLayer('http://{s}.tile.cloudmade.com/10d9f8e4181a5b2888c2aca2114fa09c/997/256/{z}/{x}/{y}.png', {
+        attribution: 'Map data &copy; <a href="http://openstreetmap.org">OpenStreetMap</a> contributors, <a href="http://creativecommons.org/licenses/by-sa/2.0/">CC-BY-SA</a>, Imagery © <a href="http://cloudmade.com">CloudMade</a>',
+        maxZoom: 18
+        })
+         .addTo(map);
+
+        //  Add the St. Louis county boundary polygon to the map.
+        //  First, create a style for the polygon.
+        var bdyStyle = {
+            "color": "#00ff00", //  Bright green line color.
+            "weight": 5, //  Line weight.
+            "opacity": 0.5, //  Line opacity.
+            "fillOpacity": 0.0 //  Fill opacity (completely transparent).
+        };
+        //  Display imported county boundary.
+        L.geoJson(County_Bdy, {
+            style: bdyStyle
+        })
+         .addTo(map);
+
+        //  Add the sales points, 2011-2013, to the map.	
+        //  First, create a circle marker style for the points.
+        var geojsonMarkerOptions = {
+            radius: 4, //  Marker size in pixels.
+            fillColor: "#ff33ff", //  Bright pink fill color.
+            color: "#000000", //  Black outline color.
+            weight: 1, //  Outline weight.
+            opacity: 1, //  Outline opacity.
+            fillOpacity: 0.5 //  Fill opacity.
+        };
+        //  Display imported sales.
+        L.geoJson(sales, {
+            pointToLayer: function (sales, latlng) {
+                return L.circleMarker(latlng, geojsonMarkerOptions);
+        }
+        })
+         .addTo(map);
+		
+        </script>
+    </body>
+</html>
